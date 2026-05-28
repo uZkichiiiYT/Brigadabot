@@ -25,7 +25,7 @@ const client = new Client({
 });
 
 // =========================
-// 💰 FINANZEN SPEICHER
+// 💰 FINANZEN (IN MEMORY)
 // =========================
 let finance = {
     total: 0,
@@ -33,19 +33,12 @@ let finance = {
     wochenabgaben: 0
 };
 
-function updateFinance(amount, type) {
-    finance.total += amount;
-
-    if (type === "sanktion") finance.sanktionen += amount;
-    if (type === "week") finance.wochenabgaben += amount;
-}
-
 function financeEmbed() {
     return new EmbedBuilder()
         .setTitle("🏦 Finanz Übersicht")
         .setColor(0x00ffcc)
         .addFields(
-            { name: "💰 Gesamtkasse", value: `${finance.total.toLocaleString()}$`, inline: false },
+            { name: "💰 Gesamtkasse", value: `${finance.total.toLocaleString()}$` },
             { name: "🚫 Sanktionen", value: `${finance.sanktionen.toLocaleString()}$`, inline: true },
             { name: "💷 Wochenabgaben", value: `${finance.wochenabgaben.toLocaleString()}$`, inline: true }
         )
@@ -53,7 +46,7 @@ function financeEmbed() {
 }
 
 // =========================
-// 🟢 START
+// 🟢 BOT START
 // =========================
 client.once(Events.ClientReady, () => {
     console.log(`✅ Online als ${client.user.tag}`);
@@ -79,14 +72,83 @@ client.on(Events.MessageCreate, async message => {
         if (fin) {
 
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("fin_add").setLabel("➕").setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId("fin_remove").setLabel("➖").setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId("fin_set").setLabel("✏️").setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId("fin_refresh").setLabel("🔄 Update").setStyle(ButtonStyle.Primary)
             );
 
-            fin.send({
-                embeds: [financeEmbed()],
+            fin.send({ embeds: [financeEmbed()], components: [row] });
+        }
+
+        // 🚑 ABMELDUNG
+        const ab = message.guild.channels.cache.find(ch =>
+            ch.name === "🚑┃𝗔𝗯𝗺𝗲𝗹𝗱𝗲𝗻"
+        );
+
+        if (ab) {
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId("abmeldung").setLabel("📅 Abmelden").setStyle(ButtonStyle.Primary)
+            );
+
+            ab.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("🚑 Abmeldesystem")
+                        .setColor(0x0099ff)
+                ],
                 components: [row]
+            });
+        }
+
+        // 💷 WOCHENABGABE
+        const week = message.guild.channels.cache.find(ch =>
+            ch.name === "💷┃wochenabgabe"
+        );
+
+        if (week) {
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId("week").setLabel("💷 Abgeben").setStyle(ButtonStyle.Success)
+            );
+
+            week.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("💷 Wochenabgabe")
+                        .setColor(0xffff00)
+                ],
+                components: [row]
+            });
+        }
+
+        // 🚫 SANKTION
+        const sanc = message.guild.channels.cache.find(ch =>
+            ch.name === "📓┃𝗦𝗮𝗻𝗸𝘁𝗶𝗼𝗻𝗲𝗻-verwaltung"
+        );
+
+        if (sanc) {
+
+            const menu = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId("sanktion_select")
+                    .setPlaceholder("§ auswählen")
+                    .addOptions(
+                        { label: "§1", value: "75000" },
+                        { label: "§2", value: "350000" },
+                        { label: "§3", value: "100000" },
+                        { label: "§6", value: "500000" },
+                        { label: "§9", value: "50000" },
+                        { label: "§14", value: "250000" },
+                        { label: "§18", value: "200000" }
+                    )
+            );
+
+            sanc.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("🚫 Sanktion System")
+                        .setColor(0xff0000)
+                ],
+                components: [menu]
             });
         }
 
@@ -95,122 +157,144 @@ client.on(Events.MessageCreate, async message => {
 });
 
 // =========================
-// 🔘 BUTTONS
+// 🔘 INTERACTIONS
 // =========================
 client.on(Events.InteractionCreate, async interaction => {
 
-    if (!interaction.isButton()) return;
-
     // =========================
-    // FINANZ EDITOR
+    // BUTTONS
     // =========================
-    if (interaction.customId === "fin_add") {
+    if (interaction.isButton()) {
 
-        const modal = new ModalBuilder()
-            .setCustomId("fin_add_modal")
-            .setTitle("Geld hinzufügen");
+        // 🚑 ABMELDUNG
+        if (interaction.customId === "abmeldung") {
 
-        const amount = new TextInputBuilder()
-            .setCustomId("amount")
-            .setLabel("Betrag")
-            .setStyle(TextInputStyle.Short);
+            const modal = new ModalBuilder()
+                .setCustomId("abmeldung_modal")
+                .setTitle("Abmeldung");
 
-        modal.addComponents(new ActionRowBuilder().addComponents(amount));
-
-        return interaction.showModal(modal);
-    }
-
-    if (interaction.customId === "fin_remove") {
-
-        const modal = new ModalBuilder()
-            .setCustomId("fin_remove_modal")
-            .setTitle("Geld abziehen");
-
-        const amount = new TextInputBuilder()
-            .setCustomId("amount")
-            .setLabel("Betrag")
-            .setStyle(TextInputStyle.Short);
-
-        modal.addComponents(new ActionRowBuilder().addComponents(amount));
-
-        return interaction.showModal(modal);
-    }
-
-    if (interaction.customId === "fin_set") {
-
-        const modal = new ModalBuilder()
-            .setCustomId("fin_set_modal")
-            .setTitle("Gesamt setzen");
-
-        const amount = new TextInputBuilder()
-            .setCustomId("amount")
-            .setLabel("Neuer Wert")
-            .setStyle(TextInputStyle.Short);
-
-        modal.addComponents(new ActionRowBuilder().addComponents(amount));
-
-        return interaction.showModal(modal);
-    }
-
-    // =========================
-    // 🚫 SANKTION MENU (NEU)
-    // =========================
-    if (interaction.customId === "sanktion_menu") {
-
-        const menu = new StringSelectMenuBuilder()
-            .setCustomId("sanktion_select")
-            .setPlaceholder("§ auswählen")
-            .addOptions(
-                { label: "§1", value: "1-75000" },
-                { label: "§2", value: "2-200000" },
-                { label: "§3", value: "3-100000" },
-                { label: "§6", value: "6-500000" },
-                { label: "§9", value: "9-50000" },
-                { label: "§11", value: "11-50000" },
-                { label: "§14", value: "14-250000" },
-                { label: "§18", value: "18-200000" }
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId("von").setLabel("Von").setStyle(TextInputStyle.Short)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId("bis").setLabel("Bis").setStyle(TextInputStyle.Short)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId("grund").setLabel("Grund").setStyle(TextInputStyle.Paragraph)
+                )
             );
 
-        const row = new ActionRowBuilder().addComponents(menu);
+            return interaction.showModal(modal);
+        }
 
-        return interaction.reply({
-            content: "🚫 Wähle § Regel",
-            components: [row],
-            ephemeral: true
-        });
+        // 💷 WOCHENABGABE
+        if (interaction.customId === "week") {
+
+            const modal = new ModalBuilder()
+                .setCustomId("week_modal")
+                .setTitle("Wochenabgabe");
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId("amount").setLabel("Betrag").setStyle(TextInputStyle.Short)
+                )
+            );
+
+            return interaction.showModal(modal);
+        }
+
+        // 🔄 FINANZEN UPDATE
+        if (interaction.customId === "fin_refresh") {
+            return interaction.reply({
+                embeds: [financeEmbed()],
+                ephemeral: true
+            });
+        }
     }
-});
 
-// =========================
-// 📝 MODALS FINANZEN
-// =========================
-client.on(Events.InteractionCreate, async interaction => {
+    // =========================
+    // SANKTION MENU
+    // =========================
+    if (interaction.isStringSelectMenu() && interaction.customId === "sanktion_select") {
 
+        const amount = Number(interaction.values[0]);
+
+        finance.total += amount;
+        finance.sanktionen += amount;
+
+        const channel = interaction.guild.channels.cache.find(ch =>
+            ch.name === "🚫┃𝗦𝗮𝗻𝗸𝘁𝗶𝗼𝗻𝗲𝗻"
+        );
+
+        channel.send({
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle("🚫 Sanktion")
+                    .setDescription(`💰 ${amount}$`)
+                    .setColor(0xff0000)
+            ]
+        });
+
+        return interaction.reply({ content: "✅ Sanktion gespeichert", ephemeral: true });
+    }
+
+    // =========================
+    // MODALS
+    // =========================
     if (!interaction.isModalSubmit()) return;
 
-    const amount = Number(interaction.fields.getTextInputValue("amount") || 0);
+    // 🚑 ABMELDUNG
+    if (interaction.customId === "abmeldung_modal") {
 
-    if (interaction.customId === "fin_add_modal") {
-        updateFinance(amount, "add");
+        const von = interaction.fields.getTextInputValue("von");
+        const bis = interaction.fields.getTextInputValue("bis");
+        const grund = interaction.fields.getTextInputValue("grund");
+
+        const channel = interaction.guild.channels.cache.find(ch =>
+            ch.name === "🚑┃𝗔𝗯𝗺𝗲𝗹𝗱𝘂𝗻𝗴-𝐋𝐢𝐬𝐭𝐞"
+        );
+
+        channel.send({
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle("📅 Abmeldung")
+                    .addFields(
+                        { name: "User", value: `${interaction.user}` },
+                        { name: "Von", value: von },
+                        { name: "Bis", value: bis },
+                        { name: "Grund", value: grund }
+                    )
+                    .setColor(0x0099ff)
+            ]
+        });
+
+        return interaction.reply({ content: "✅ Abmeldung gesendet", ephemeral: true });
     }
 
-    if (interaction.customId === "fin_remove_modal") {
-        updateFinance(-amount, "remove");
+    // 💷 WOCHENABGABE
+    if (interaction.customId === "week_modal") {
+
+        const amount = Number(interaction.fields.getTextInputValue("amount"));
+
+        finance.total += amount;
+        finance.wochenabgaben += amount;
+
+        const channel = interaction.guild.channels.cache.find(ch =>
+            ch.name === "💷┃wochenabgabe-verwaltung"
+        );
+
+        channel.send({
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle("💷 Wochenabgabe")
+                    .setDescription(`${amount}$`)
+                    .setColor(0xffff00)
+            ]
+        });
+
+        return interaction.reply({ content: "✅ gespeichert", ephemeral: true });
     }
-
-    if (interaction.customId === "fin_set_modal") {
-        finance.total = amount;
-    }
-
-    const channel = interaction.guild.channels.cache.find(ch =>
-        ch.name === "💰┃finanz-übersicht"
-    );
-
-    if (channel) {
-        channel.send({ embeds: [financeEmbed()] });
-    }
-
-    interaction.reply({ content: "✅ Aktualisiert", ephemeral: true });
 });
 
 // =========================
