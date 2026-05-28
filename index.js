@@ -24,7 +24,18 @@ const client = new Client({
 });
 
 // ========================================
-// ⏰ DM AUTO DELETE (4 TAGE)
+// 💰 FINANZEN
+// ========================================
+
+let familienKasse = 10000000;
+let sanktionenGesamt = 0;
+let wochenabgabenGesamt = 0;
+let freiwilligGesamt = 0;
+
+let finanzMessage = null;
+
+// ========================================
+// ⏰ DM AUTO DELETE
 // ========================================
 
 const deleteTime = 4 * 24 * 60 * 60 * 1000;
@@ -33,7 +44,6 @@ const deleteTime = 4 * 24 * 60 * 60 * 1000;
 // 🔐 ROLLEN
 // ========================================
 
-// DARF SANKTIONEN MACHEN
 const sanktionRoles = [
     "⌊12⌉ 👑 Chrestnik Leader",
     "⌊11⌉ 👑 Smotriaschi",
@@ -42,7 +52,6 @@ const sanktionRoles = [
     "⌊🚩⌉ Sanktion Verwaltung"
 ];
 
-// DARF ABMELDUNG BESTÄTIGEN
 const abmeldungRoles = [
     "⌊12⌉ 👑 Chrestnik Leader",
     "⌊11⌉ 👑 Smotriaschi",
@@ -51,12 +60,95 @@ const abmeldungRoles = [
 ];
 
 // ========================================
-// 🟢 BOT START
+// 📜 § LISTE
+// ========================================
+
+const paragraphen = `
+§1 Beleidigung
+§2 Respektlosigkeit
+§3 Schießen im HQ
+§4 FailRP
+§5 Copbaiting
+§6 RDM
+§7 VDM
+§8 HQ Angriff
+§9 PowerRP
+§10 Teaming
+§11 Bugusing
+§12 Combatlog
+§13 Trolling
+§14 Betrug
+§15 Korruption
+§16 Waffenhandel
+§17 Missachtung
+§18 Illegale Aktionen
+§19 Schwerer Regelbruch
+`;
+
+// ========================================
+// 🟢 BOT ONLINE
 // ========================================
 
 client.once(Events.ClientReady, () => {
     console.log(`✅ Bot online als ${client.user.tag}`);
 });
+
+// ========================================
+// 💰 FINANZ UPDATE
+// ========================================
+
+async function updateFinanzen(guild) {
+
+    const channel = guild.channels.cache.find(
+        ch => ch.name === "💰┃finanz-übersicht"
+    );
+
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+        .setTitle("💰 Brigada Finanzübersicht")
+        .addFields(
+            {
+                name: "🏦 Familien Kasse",
+                value: `${familienKasse.toLocaleString()}$`
+            },
+            {
+                name: "🚫 Sanktionen",
+                value: `${sanktionenGesamt.toLocaleString()}$`,
+                inline: true
+            },
+            {
+                name: "💷 Wochenabgaben",
+                value: `${wochenabgabenGesamt.toLocaleString()}$`,
+                inline: true
+            },
+            {
+                name: "🤝 Freiwillige Spenden",
+                value: `${freiwilligGesamt.toLocaleString()}$`,
+                inline: true
+            }
+        )
+        .setColor(0x00ff99)
+        .setTimestamp();
+
+    if (!finanzMessage) {
+
+        finanzMessage = await channel.send({
+            embeds: [embed]
+        });
+
+    } else {
+
+        await finanzMessage.edit({
+            embeds: [embed]
+        }).catch(async () => {
+
+            finanzMessage = await channel.send({
+                embeds: [embed]
+            });
+        });
+    }
+}
 
 // ========================================
 // 📌 PANEL COMMAND
@@ -91,7 +183,7 @@ client.on(Events.MessageCreate, async message => {
 
             const embed = new EmbedBuilder()
                 .setTitle("🚑 Abmeldungs System")
-                .setDescription("Klicke unten auf den Button um eine Abmeldung einzureichen.")
+                .setDescription("Klicke unten auf den Button.")
                 .setColor(0x0099ff);
 
             abmeldungPanel.send({
@@ -119,7 +211,7 @@ client.on(Events.MessageCreate, async message => {
 
             const embed = new EmbedBuilder()
                 .setTitle("🚫 Sanktions Verwaltung")
-                .setDescription("Nur Sanktion Verwaltung & Leaderschaft dürfen Sanktionen erstellen.")
+                .setDescription("Sanktionen erstellen")
                 .setColor(0xff0000);
 
             sanktionPanel.send({
@@ -128,7 +220,43 @@ client.on(Events.MessageCreate, async message => {
             });
         }
 
-        message.reply("✅ Panels wurden erstellt");
+        // ========================================
+        // 💷 FINANZEN PANEL
+        // ========================================
+
+        const finanzPanel = message.guild.channels.cache.find(
+            ch => ch.name === "💷┃𝐖𝐨𝐜𝐡𝐞𝐧𝐚𝐛𝐠𝐚𝐛𝐞-verwaltung"
+        );
+
+        if (finanzPanel) {
+
+            const row = new ActionRowBuilder().addComponents(
+
+                new ButtonBuilder()
+                    .setCustomId("wochenabgabe")
+                    .setLabel("💷 Wochenabgabe")
+                    .setStyle(ButtonStyle.Secondary),
+
+                new ButtonBuilder()
+                    .setCustomId("freiwillig")
+                    .setLabel("🤝 Freiwillige Spende")
+                    .setStyle(ButtonStyle.Success)
+            );
+
+            const embed = new EmbedBuilder()
+                .setTitle("💰 Finanz Verwaltung")
+                .setDescription("Wochenabgaben & Spenden")
+                .setColor(0xffff00);
+
+            finanzPanel.send({
+                embeds: [embed],
+                components: [row]
+            });
+        }
+
+        updateFinanzen(message.guild);
+
+        message.reply("✅ Panels erstellt");
     }
 });
 
@@ -141,7 +269,7 @@ client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isButton()) return;
 
     // ========================================
-    // 🚑 ABMELDUNG BUTTON
+    // 🚑 ABMELDUNG
     // ========================================
 
     if (interaction.customId === "abmeldung") {
@@ -175,7 +303,7 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     // ========================================
-    // 🚫 SANKTION BUTTON
+    // 🚫 SANKTION
     // ========================================
 
     if (interaction.customId === "sanktion") {
@@ -205,54 +333,69 @@ client.on(Events.InteractionCreate, async interaction => {
             .setLabel("Strafe")
             .setStyle(TextInputStyle.Short);
 
-        const grund = new TextInputBuilder()
-            .setCustomId("grund")
-            .setLabel("Grund")
-            .setStyle(TextInputStyle.Paragraph);
+        const paragraph = new TextInputBuilder()
+            .setCustomId("paragraph")
+            .setLabel("§ Nummern")
+            .setPlaceholder("z.B §3, §7, §19")
+            .setStyle(TextInputStyle.Short);
 
         modal.addComponents(
             new ActionRowBuilder().addComponents(user),
             new ActionRowBuilder().addComponents(geld),
-            new ActionRowBuilder().addComponents(grund)
+            new ActionRowBuilder().addComponents(paragraph)
         );
 
         await interaction.showModal(modal);
     }
 
     // ========================================
-    // ✅ ABMELDUNG GELESEN
+    // 💷 WOCHENABGABE
     // ========================================
 
-    if (interaction.customId === "abmeldung_gelesen") {
+    if (interaction.customId === "wochenabgabe") {
 
-        const hasRole = interaction.member.roles.cache.some(role =>
-            abmeldungRoles.includes(role.name)
+        const modal = new ModalBuilder()
+            .setCustomId("wochen_modal")
+            .setTitle("💷 Wochenabgabe");
+
+        const user = new TextInputBuilder()
+            .setCustomId("user")
+            .setLabel("Discord Name")
+            .setStyle(TextInputStyle.Short);
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(user)
         );
 
-        if (!hasRole) {
-            return interaction.reply({
-                content: "❌ Keine Rechte",
-                ephemeral: true
-            });
-        }
+        await interaction.showModal(modal);
+    }
 
-        const embed = EmbedBuilder.from(interaction.message.embeds[0]);
+    // ========================================
+    // 🤝 SPENDE
+    // ========================================
 
-        embed.setFooter({
-            text: `✅ Gelesen von ${interaction.user.tag}`
-        });
+    if (interaction.customId === "freiwillig") {
 
-        embed.setColor(0x00ff00);
+        const modal = new ModalBuilder()
+            .setCustomId("spende_modal")
+            .setTitle("🤝 Freiwillige Spende");
 
-        await interaction.message.edit({
-            embeds: [embed],
-            components: []
-        });
+        const user = new TextInputBuilder()
+            .setCustomId("user")
+            .setLabel("Discord Name")
+            .setStyle(TextInputStyle.Short);
 
-        interaction.reply({
-            content: "✅ Abmeldung bestätigt",
-            ephemeral: true
-        });
+        const geld = new TextInputBuilder()
+            .setCustomId("geld")
+            .setLabel("Betrag")
+            .setStyle(TextInputStyle.Short);
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(user),
+            new ActionRowBuilder().addComponents(geld)
+        );
+
+        await interaction.showModal(modal);
     }
 
     // ========================================
@@ -261,32 +404,32 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (interaction.customId === "sanktion_bezahlt") {
 
-        const hasRole = interaction.member.roles.cache.some(role =>
-            sanktionRoles.includes(role.name)
-        );
-
-        if (!hasRole) {
-            return interaction.reply({
-                content: "❌ Keine Rechte",
-                ephemeral: true
-            });
-        }
-
         const embed = EmbedBuilder.from(interaction.message.embeds[0]);
 
-        embed.setFooter({
-            text: `✅ Bezahlt bestätigt von ${interaction.user.tag}`
-        });
+        const amountField = embed.data.fields.find(f => f.name === "💰 Strafe");
+
+        const geld = parseInt(
+            amountField.value.replace(/\D/g, "")
+        );
+
+        sanktionenGesamt += geld;
+        familienKasse += geld;
 
         embed.setColor(0x00ff00);
+
+        embed.setFooter({
+            text: `✅ Bezahlt von ${interaction.user.tag}`
+        });
 
         await interaction.message.edit({
             embeds: [embed],
             components: []
         });
 
+        updateFinanzen(interaction.guild);
+
         interaction.reply({
-            content: "✅ Sanktion bestätigt",
+            content: "✅ Sanktion bezahlt",
             ephemeral: true
         });
     }
@@ -301,7 +444,7 @@ client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isModalSubmit()) return;
 
     // ========================================
-    // 🚑 ABMELDUNG MODAL
+    // 🚑 ABMELDUNG
     // ========================================
 
     if (interaction.customId === "abmeldung_modal") {
@@ -365,9 +508,8 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const userInput = interaction.fields.getTextInputValue("user");
         const geld = interaction.fields.getTextInputValue("geld");
-        const grund = interaction.fields.getTextInputValue("grund");
+        const paragraph = interaction.fields.getTextInputValue("paragraph");
 
-        // USER SUCHEN
         const target = interaction.guild.members.cache.find(m =>
             m.user.username.toLowerCase() === userInput.toLowerCase() ||
             m.displayName.toLowerCase() === userInput.toLowerCase()
@@ -393,6 +535,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const embed = new EmbedBuilder()
             .setTitle("🚫 Neue Sanktion")
+            .setDescription(paragraphen)
             .addFields(
                 {
                     name: "👤 User",
@@ -403,8 +546,8 @@ client.on(Events.InteractionCreate, async interaction => {
                     value: `${geld}$`
                 },
                 {
-                    name: "📌 Grund",
-                    value: grund
+                    name: "📜 Paragraphen",
+                    value: paragraph
                 },
                 {
                     name: "👮 Von",
@@ -420,10 +563,6 @@ client.on(Events.InteractionCreate, async interaction => {
             components: [row]
         });
 
-        // ========================================
-        // 📩 DM NACHRICHT
-        // ========================================
-
         const dmMessage = await target.send({
             embeds: [
                 new EmbedBuilder()
@@ -432,18 +571,15 @@ client.on(Events.InteractionCreate, async interaction => {
 💰 Strafe:
 ${geld}$
 
-📌 Grund:
-${grund}
+📜 Paragraphen:
+${paragraph}
 
-⚠️ Bitte bezahle deine Sanktion.
-
-⏰ Diese Nachricht wird nach 4 Tagen gelöscht.
+⚠️ Bitte bezahlen.
                     `)
                     .setColor(0xff0000)
             ]
         }).catch(() => null);
 
-        // AUTO DELETE DM
         if (dmMessage) {
 
             setTimeout(() => {
@@ -453,6 +589,57 @@ ${grund}
 
         interaction.reply({
             content: "✅ Sanktion erstellt",
+            ephemeral: true
+        });
+    }
+
+    // ========================================
+    // 💷 WOCHENABGABE
+    // ========================================
+
+    if (interaction.customId === "wochen_modal") {
+
+        const userInput = interaction.fields.getTextInputValue("user");
+
+        const target = interaction.guild.members.cache.find(m =>
+            m.user.username.toLowerCase() === userInput.toLowerCase()
+        );
+
+        if (!target) {
+            return interaction.reply({
+                content: "❌ User nicht gefunden",
+                ephemeral: true
+            });
+        }
+
+        wochenabgabenGesamt += 350000;
+        familienKasse += 350000;
+
+        updateFinanzen(interaction.guild);
+
+        interaction.reply({
+            content: "✅ Wochenabgabe eingetragen",
+            ephemeral: true
+        });
+    }
+
+    // ========================================
+    // 🤝 SPENDE
+    // ========================================
+
+    if (interaction.customId === "spende_modal") {
+
+        const geld = parseInt(
+            interaction.fields.getTextInputValue("geld")
+        );
+
+        freiwilligGesamt += geld;
+        familienKasse += geld;
+
+        updateFinanzen(interaction.guild);
+
+        interaction.reply({
+            content: "✅ Spende eingetragen",
             ephemeral: true
         });
     }
