@@ -26,7 +26,7 @@ const client = new Client({
 });
 
 // =========================
-// 💾 DATABASE
+// 💾 FINANZEN DB
 // =========================
 const DB = "./finance.json";
 
@@ -65,7 +65,7 @@ client.on(Events.MessageCreate, async message => {
             return message.reply("❌ Keine Rechte");
 
         // =========================
-        // 💰 FINANCE PANEL
+        // 💰 FINANZEN
         // =========================
         const finance = message.guild.channels.cache.find(ch =>
             ch.name === "💰┃finanz-übersicht"
@@ -84,36 +84,55 @@ client.on(Events.MessageCreate, async message => {
                 .setDescription(`💰 Gesamtkasse: **${getBal().toLocaleString()}$**`)
                 .setColor(0x00ffcc);
 
-            await finance.send({ embeds: [embed], components: [row] });
+            finance.send({ embeds: [embed], components: [row] });
         }
 
         // =========================
-        // 🚫 SANKTION PANEL
+        // 🚑 ABMELDUNG
         // =========================
-        const sanc = message.guild.channels.cache.find(ch =>
-            ch.name === "📓┃𝗦𝗮𝗻𝗸𝘁𝗶𝗼𝗻𝗲𝗻-verwaltung"
+        const ab = message.guild.channels.cache.find(ch =>
+            ch.name === "🚑┃𝗔𝗯𝗺𝗲𝗹𝗱𝗲𝗻"
         );
 
-        if (sanc) {
+        if (ab) {
 
-            const menu = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId("sanktion_select")
-                    .setPlaceholder("§ auswählen")
-                    .addOptions(
-                        ...Array.from({ length: 19 }, (_, i) => ({
-                            label: `§${i + 1}`,
-                            value: `§${i + 1}`
-                        }))
-                    )
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId("abmelden")
+                    .setLabel("📅 Abmelden")
+                    .setStyle(ButtonStyle.Primary)
             );
 
             const embed = new EmbedBuilder()
-                .setTitle("🚫 Sanktion System")
-                .setDescription("Wähle einen § aus und erstelle Sanktion")
-                .setColor(0xff0000);
+                .setTitle("🚑 Abmeldesystem")
+                .setDescription("Klicke für Abmeldung")
+                .setColor(0x0099ff);
 
-            await sanc.send({ embeds: [embed], components: [menu] });
+            ab.send({ embeds: [embed], components: [row] });
+        }
+
+        // =========================
+        // 💷 WOCHENABGABE
+        // =========================
+        const week = message.guild.channels.cache.find(ch =>
+            ch.name === "💷┃wochenabgabe"
+        );
+
+        if (week) {
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId("week_send")
+                    .setLabel("💷 Abgeben")
+                    .setStyle(ButtonStyle.Success)
+            );
+
+            const embed = new EmbedBuilder()
+                .setTitle("💷 Wochenabgabe")
+                .setDescription("Reiche deine Wochenabgabe ein")
+                .setColor(0xffff00);
+
+            week.send({ embeds: [embed], components: [row] });
         }
 
         message.reply("✅ Panels erstellt");
@@ -121,162 +140,127 @@ client.on(Events.MessageCreate, async message => {
 });
 
 // =========================
-// 🔘 INTERACTIONS
+// 🔘 BUTTONS
 // =========================
 client.on(Events.InteractionCreate, async interaction => {
 
-    // =========================
-    // FINANCE BUTTONS
-    // =========================
-    if (interaction.isButton()) {
-
-        if (interaction.customId === "fin_add" || interaction.customId === "fin_remove") {
-
-            const modal = new ModalBuilder()
-                .setCustomId(interaction.customId + "_modal")
-                .setTitle("Finanzen");
-
-            const amount = new TextInputBuilder()
-                .setCustomId("amount")
-                .setLabel("Betrag")
-                .setStyle(TextInputStyle.Short);
-
-            const reason = new TextInputBuilder()
-                .setCustomId("reason")
-                .setLabel("Grund")
-                .setStyle(TextInputStyle.Short);
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(amount),
-                new ActionRowBuilder().addComponents(reason)
-            );
-
-            return interaction.showModal(modal);
-        }
-
-        if (interaction.customId === "fin_edit") {
-
-            const modal = new ModalBuilder()
-                .setCustomId("fin_edit_modal")
-                .setTitle("Bearbeiten");
-
-            const amount = new TextInputBuilder()
-                .setCustomId("amount")
-                .setLabel("Neuer Stand")
-                .setStyle(TextInputStyle.Short);
-
-            modal.addComponents(new ActionRowBuilder().addComponents(amount));
-
-            return interaction.showModal(modal);
-        }
-    }
+    if (!interaction.isButton()) return;
 
     // =========================
-    // SANKTION SELECT
+    // ABMELDUNG
     // =========================
-    if (interaction.isStringSelectMenu() && interaction.customId === "sanktion_select") {
+    if (interaction.customId === "abmelden") {
 
         const modal = new ModalBuilder()
-            .setCustomId("sanktion_modal")
-            .setTitle("Sanktion erstellen");
+            .setCustomId("abmeldung_modal")
+            .setTitle("Abmeldung");
 
-        const user = new TextInputBuilder()
-            .setCustomId("user")
-            .setLabel("User")
-            .setStyle(TextInputStyle.Short);
-
-        const cost = new TextInputBuilder()
-            .setCustomId("cost")
-            .setLabel("Kosten (z.B 100000 - 350000)")
-            .setStyle(TextInputStyle.Short);
-
-        const reason = new TextInputBuilder()
-            .setCustomId("reason")
-            .setLabel(`Grund (${interaction.values[0]})`)
-            .setStyle(TextInputStyle.Paragraph);
+        const von = new TextInputBuilder().setCustomId("von").setLabel("Von").setStyle(TextInputStyle.Short);
+        const bis = new TextInputBuilder().setCustomId("bis").setLabel("Bis").setStyle(TextInputStyle.Short);
+        const grund = new TextInputBuilder().setCustomId("grund").setLabel("Grund").setStyle(TextInputStyle.Paragraph);
 
         modal.addComponents(
-            new ActionRowBuilder().addComponents(user),
-            new ActionRowBuilder().addComponents(cost),
-            new ActionRowBuilder().addComponents(reason)
+            new ActionRowBuilder().addComponents(von),
+            new ActionRowBuilder().addComponents(bis),
+            new ActionRowBuilder().addComponents(grund)
         );
 
         return interaction.showModal(modal);
     }
 
     // =========================
-    // MODALS FINANCE
+    // WOCHENABGABE
     // =========================
-    if (interaction.isModalSubmit()) {
+    if (interaction.customId === "week_send") {
 
-        // ➕ EINZAHLEN
-        if (interaction.customId === "fin_add_modal") {
-            const amount = Number(interaction.fields.getTextInputValue("amount"));
-            const reason = interaction.fields.getTextInputValue("reason");
+        const modal = new ModalBuilder()
+            .setCustomId("week_modal")
+            .setTitle("Wochenabgabe");
 
-            const bal = addBal(amount);
+        const amount = new TextInputBuilder()
+            .setCustomId("amount")
+            .setLabel("Betrag")
+            .setStyle(TextInputStyle.Short);
 
-            return interaction.reply({
-                content: `➕ +${amount}$ | ${reason}\n🏦 ${bal.toLocaleString()}$`,
-                ephemeral: true
-            });
-        }
+        const reason = new TextInputBuilder()
+            .setCustomId("reason")
+            .setLabel("Info")
+            .setStyle(TextInputStyle.Short);
 
-        // ➖ ABZIEHEN
-        if (interaction.customId === "fin_remove_modal") {
-            const amount = Number(interaction.fields.getTextInputValue("amount"));
-            const reason = interaction.fields.getTextInputValue("reason");
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(amount),
+            new ActionRowBuilder().addComponents(reason)
+        );
 
-            const bal = addBal(-amount);
+        return interaction.showModal(modal);
+    }
+});
 
-            return interaction.reply({
-                content: `➖ -${amount}$ | ${reason}\n🏦 ${bal.toLocaleString()}$`,
-                ephemeral: true
-            });
-        }
+// =========================
+// 📝 MODALS
+// =========================
+client.on(Events.InteractionCreate, async interaction => {
 
-        // ✏️ EDIT
-        if (interaction.customId === "fin_edit_modal") {
-            const amount = Number(interaction.fields.getTextInputValue("amount"));
+    if (!interaction.isModalSubmit()) return;
 
-            setBal(amount);
+    // =========================
+    // ABMELDUNG
+    // =========================
+    if (interaction.customId === "abmeldung_modal") {
 
-            return interaction.reply({
-                content: `✏️ Neuer Stand: ${amount.toLocaleString()}$`,
-                ephemeral: true
-            });
-        }
+        const von = interaction.fields.getTextInputValue("von");
+        const bis = interaction.fields.getTextInputValue("bis");
+        const grund = interaction.fields.getTextInputValue("grund");
 
-        // 🚫 SANKTION FINAL
-        if (interaction.customId === "sanktion_modal") {
+        const channel = interaction.guild.channels.cache.find(ch =>
+            ch.name === "🚑┃𝗔𝗯𝗺𝗲𝗹𝗱𝘂𝗻𝗴-𝐋𝐢𝐬𝐭𝐞"
+        );
 
-            const user = interaction.fields.getTextInputValue("user");
-            const cost = interaction.fields.getTextInputValue("cost");
-            const reason = interaction.fields.getTextInputValue("reason");
+        const embed = new EmbedBuilder()
+            .setTitle("📅 Abmeldung")
+            .addFields(
+                { name: "User", value: `${interaction.user}` },
+                { name: "Von", value: von },
+                { name: "Bis", value: bis },
+                { name: "Grund", value: grund }
+            )
+            .setColor(0x0099ff);
 
-            const channel = interaction.guild.channels.cache.find(ch =>
-                ch.name === "🚫┃𝗦𝗮𝗻𝗸𝘁𝗶𝗼𝗻𝗲𝗻"
-            );
+        channel.send({ embeds: [embed] });
 
-            const embed = new EmbedBuilder()
-                .setTitle("🚫 Sanktion")
-                .addFields(
-                    { name: "User", value: user },
-                    { name: "Kosten", value: cost },
-                    { name: "Grund", value: reason }
-                )
-                .setColor(0xff0000);
+        return interaction.reply({ content: "✅ Abmeldung gesendet", ephemeral: true });
+    }
 
-            channel.send({ embeds: [embed] });
+    // =========================
+    // WOCHENABGABE
+    // =========================
+    if (interaction.customId === "week_modal") {
 
-            // automatisch in Finanzen einrechnen
-            addBal(-Number(cost.split(" ")[0]) || 0);
+        const amount = Number(interaction.fields.getTextInputValue("amount"));
+        const reason = interaction.fields.getTextInputValue("reason");
 
-            return interaction.reply({
-                content: "✅ Sanktion erstellt & verbucht",
-                ephemeral: true
-            });
-        }
+        const channel = interaction.guild.channels.cache.find(ch =>
+            ch.name === "💷┃wochenabgabe-verwaltung"
+        );
+
+        const embed = new EmbedBuilder()
+            .setTitle("💷 Wochenabgabe eingereicht")
+            .addFields(
+                { name: "User", value: `${interaction.user}` },
+                { name: "Betrag", value: `${amount}$` },
+                { name: "Info", value: reason }
+            )
+            .setColor(0xffff00);
+
+        channel.send({ embeds: [embed] });
+
+        // 💰 direkt in Finanzen
+        addBal(amount);
+
+        return interaction.reply({
+            content: "✅ Wochenabgabe gespeichert",
+            ephemeral: true
+        });
     }
 });
 
