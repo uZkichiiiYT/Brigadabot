@@ -1,4 +1,3 @@
-```js
 const {
     Client,
     GatewayIntentBits,
@@ -29,10 +28,11 @@ const client = new Client({
 });
 
 // ==========================================
-// ⏰ DM AUTO DELETE
+// 💰 FINANZEN
 // ==========================================
 
-const deleteTime = 4 * 24 * 60 * 60 * 1000;
+let familienKasse = 10000000;
+let finanzMessageId = null;
 
 // ==========================================
 // 🔐 ROLLEN
@@ -46,26 +46,8 @@ const sanktionRoles = [
     "⌊🚩⌉ Sanktion Verwaltung"
 ];
 
-const abmeldungRoles = [
-    "⌊12⌉ 👑 Chrestnik Leader",
-    "⌊11⌉ 👑 Smotriaschi",
-    "⌊10⌉ 👑 Glava",
-    "⌊.⌉ 👑 Leaderschaft"
-];
-
 // ==========================================
-// 💰 FINANZEN
-// ==========================================
-
-let familienKasse = 10000000;
-let sanktionenGesamt = 0;
-let wochenabgabenGesamt = 0;
-let freiwilligeSpendenGesamt = 0;
-
-let finanzMessageId = null;
-
-// ==========================================
-// 💰 FINANZ EMBED
+// 💰 FINANZ OVERVIEW
 // ==========================================
 
 async function updateFinanzOverview(
@@ -131,29 +113,6 @@ client.once(Events.ClientReady, () => {
 });
 
 // ==========================================
-// 👋 WILLKOMMEN
-// ==========================================
-
-client.on(Events.GuildMemberAdd, member => {
-
-    const channel = member.guild.channels.cache.find(
-        ch => ch.name === "👋┃willkommen"
-    );
-
-    if (!channel) return;
-
-    const embed = new EmbedBuilder()
-        .setTitle("👋 Willkommen bei Brigada")
-        .setDescription(`Willkommen ${member}`)
-        .setColor(0x000000)
-        .setTimestamp();
-
-    channel.send({
-        embeds: [embed]
-    });
-});
-
-// ==========================================
 // 📌 PANEL COMMAND
 // ==========================================
 
@@ -168,53 +127,48 @@ client.on(Events.MessageCreate, async message => {
         }
 
         // ==========================================
-        // 🚑 ABMELDUNG PANEL
-        // ==========================================
-
-        const abmeldungPanel = message.guild.channels.cache.find(
-            ch => ch.name === "🚑┃𝗔𝗯𝗺𝗲𝗹𝗱𝗲𝗻"
-        );
-
-        if (abmeldungPanel) {
-
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("abmeldung")
-                    .setLabel("📅 Abmeldung")
-                    .setStyle(ButtonStyle.Primary)
-            );
-
-            const embed = new EmbedBuilder()
-                .setTitle("🚑 Abmeldungs System")
-                .setDescription("Klicke unten auf den Button.")
-                .setColor(0x0099ff);
-
-            abmeldungPanel.send({
-                embeds: [embed],
-                components: [row]
-            });
-        }
-
-        // ==========================================
         // 🚫 SANKTION PANEL
         // ==========================================
 
         const sanktionPanel = message.guild.channels.cache.find(
-            ch => ch.name === "📓┃𝗦𝗮𝗻𝗸𝗍𝗶𝗼𝗻𝗲𝗻-verwaltung"
+            ch => ch.name === "📓┃𝗦𝗮𝗻𝗸𝘁𝗶𝗼𝗻𝗲𝗻-verwaltung"
         );
 
         if (sanktionPanel) {
 
             const row = new ActionRowBuilder().addComponents(
+
                 new ButtonBuilder()
                     .setCustomId("sanktion")
                     .setLabel("🚫 Sanktion")
-                    .setStyle(ButtonStyle.Danger)
+                    .setStyle(ButtonStyle.Danger),
+
+                new ButtonBuilder()
+                    .setCustomId("wochenabgabe")
+                    .setLabel("💷 Wochenabgabe")
+                    .setStyle(ButtonStyle.Success),
+
+                new ButtonBuilder()
+                    .setCustomId("spende")
+                    .setLabel("🤝 Spende")
+                    .setStyle(ButtonStyle.Primary),
+
+                new ButtonBuilder()
+                    .setCustomId("finanz")
+                    .setLabel("✏️ Finanz ändern")
+                    .setStyle(ButtonStyle.Secondary)
             );
 
             const embed = new EmbedBuilder()
-                .setTitle("🚫 Sanktions Verwaltung")
-                .setDescription("Nur Leaderschaft darf Sanktionen erstellen.")
+                .setTitle("📓 Brigada Verwaltung")
+                .setDescription(`
+🔘 Nutze die Buttons unten
+
+• Sanktionen
+• Wochenabgaben
+• Spenden
+• Finanz Änderungen
+                `)
                 .setColor(0xff0000);
 
             sanktionPanel.send({
@@ -223,48 +177,9 @@ client.on(Events.MessageCreate, async message => {
             });
         }
 
-        // ==========================================
-        // 💰 FINANZ PANEL
-        // ==========================================
-
-        const finanzPanel = message.guild.channels.cache.find(
-            ch => ch.name === "💷┃𝐖𝐨𝐜𝐡𝐞𝐧𝐚𝐛𝐠𝐚𝐛𝐞-verwaltung"
-        );
-
-        if (finanzPanel) {
-
-            const row = new ActionRowBuilder().addComponents(
-
-                new ButtonBuilder()
-                    .setCustomId("wochenabgabe")
-                    .setLabel("💷 Wochenabgabe")
-                    .setStyle(ButtonStyle.Secondary),
-
-                new ButtonBuilder()
-                    .setCustomId("spende")
-                    .setLabel("🤝 Spende")
-                    .setStyle(ButtonStyle.Success),
-
-                new ButtonBuilder()
-                    .setCustomId("finanz_aendern")
-                    .setLabel("✏️ Finanz ändern")
-                    .setStyle(ButtonStyle.Primary)
-            );
-
-            const embed = new EmbedBuilder()
-                .setTitle("💰 Finanz Verwaltung")
-                .setDescription("Wochenabgaben • Spenden • Finanzänderungen")
-                .setColor(0xffff00);
-
-            finanzPanel.send({
-                embeds: [embed],
-                components: [row]
-            });
-        }
-
         await updateFinanzOverview(message.guild);
 
-        message.reply("✅ Panels erstellt");
+        message.reply("✅ Panel erstellt");
     }
 });
 
@@ -277,33 +192,51 @@ client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isButton()) return;
 
     // ==========================================
-    // 🚑 ABMELDUNG
+    // 🚫 SANKTION
     // ==========================================
 
-    if (interaction.customId === "abmeldung") {
+    if (interaction.customId === "sanktion") {
+
+        const hasRole = interaction.member.roles.cache.some(role =>
+            sanktionRoles.includes(role.name)
+        );
+
+        if (!hasRole) {
+
+            return interaction.reply({
+                content: "❌ Keine Rechte",
+                ephemeral: true
+            });
+        }
 
         const modal = new ModalBuilder()
-            .setCustomId("abmeldung_modal")
-            .setTitle("📅 Abmeldung");
+            .setCustomId("sanktion_modal")
+            .setTitle("🚫 Sanktion");
 
-        const von = new TextInputBuilder()
-            .setCustomId("von")
-            .setLabel("Von")
+        const user = new TextInputBuilder()
+            .setCustomId("user")
+            .setLabel("Discord Name")
             .setStyle(TextInputStyle.Short);
 
-        const bis = new TextInputBuilder()
-            .setCustomId("bis")
-            .setLabel("Bis")
+        const paragraf = new TextInputBuilder()
+            .setCustomId("paragraf")
+            .setLabel("§ Nummer")
+            .setStyle(TextInputStyle.Short);
+
+        const geld = new TextInputBuilder()
+            .setCustomId("geld")
+            .setLabel("Betrag")
             .setStyle(TextInputStyle.Short);
 
         const grund = new TextInputBuilder()
             .setCustomId("grund")
-            .setLabel("Grund")
+            .setLabel("Erweiterung / Zusatz")
             .setStyle(TextInputStyle.Paragraph);
 
         modal.addComponents(
-            new ActionRowBuilder().addComponents(von),
-            new ActionRowBuilder().addComponents(bis),
+            new ActionRowBuilder().addComponents(user),
+            new ActionRowBuilder().addComponents(paragraf),
+            new ActionRowBuilder().addComponents(geld),
             new ActionRowBuilder().addComponents(grund)
         );
 
@@ -317,7 +250,7 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.customId === "wochenabgabe") {
 
         const modal = new ModalBuilder()
-            .setCustomId("wochenabgabe_modal")
+            .setCustomId("wochen_modal")
             .setTitle("💷 Wochenabgabe");
 
         const user = new TextInputBuilder()
@@ -325,20 +258,14 @@ client.on(Events.InteractionCreate, async interaction => {
             .setLabel("Discord Name")
             .setStyle(TextInputStyle.Short);
 
-        const betrag = new TextInputBuilder()
-            .setCustomId("betrag")
+        const geld = new TextInputBuilder()
+            .setCustomId("geld")
             .setLabel("Betrag")
             .setStyle(TextInputStyle.Short);
 
-        const grund = new TextInputBuilder()
-            .setCustomId("grund")
-            .setLabel("Grund")
-            .setStyle(TextInputStyle.Paragraph);
-
         modal.addComponents(
             new ActionRowBuilder().addComponents(user),
-            new ActionRowBuilder().addComponents(betrag),
-            new ActionRowBuilder().addComponents(grund)
+            new ActionRowBuilder().addComponents(geld)
         );
 
         await interaction.showModal(modal);
@@ -359,20 +286,14 @@ client.on(Events.InteractionCreate, async interaction => {
             .setLabel("Discord Name")
             .setStyle(TextInputStyle.Short);
 
-        const betrag = new TextInputBuilder()
-            .setCustomId("betrag")
+        const geld = new TextInputBuilder()
+            .setCustomId("geld")
             .setLabel("Betrag")
             .setStyle(TextInputStyle.Short);
 
-        const grund = new TextInputBuilder()
-            .setCustomId("grund")
-            .setLabel("Grund")
-            .setStyle(TextInputStyle.Paragraph);
-
         modal.addComponents(
             new ActionRowBuilder().addComponents(user),
-            new ActionRowBuilder().addComponents(betrag),
-            new ActionRowBuilder().addComponents(grund)
+            new ActionRowBuilder().addComponents(geld)
         );
 
         await interaction.showModal(modal);
@@ -382,14 +303,14 @@ client.on(Events.InteractionCreate, async interaction => {
     // ✏️ FINANZ ÄNDERN
     // ==========================================
 
-    if (interaction.customId === "finanz_aendern") {
+    if (interaction.customId === "finanz") {
 
         const modal = new ModalBuilder()
-            .setCustomId("finanz_aendern_modal")
+            .setCustomId("finanz_modal")
             .setTitle("✏️ Finanz ändern");
 
-        const betrag = new TextInputBuilder()
-            .setCustomId("betrag")
+        const geld = new TextInputBuilder()
+            .setCustomId("geld")
             .setLabel("Betrag (+ oder -)")
             .setStyle(TextInputStyle.Short);
 
@@ -399,7 +320,7 @@ client.on(Events.InteractionCreate, async interaction => {
             .setStyle(TextInputStyle.Paragraph);
 
         modal.addComponents(
-            new ActionRowBuilder().addComponents(betrag),
+            new ActionRowBuilder().addComponents(geld),
             new ActionRowBuilder().addComponents(grund)
         );
 
@@ -408,8 +329,153 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 // ==========================================
+// 📝 MODALS
+// ==========================================
+
+client.on(Events.InteractionCreate, async interaction => {
+
+    if (!interaction.isModalSubmit()) return;
+
+    // ==========================================
+    // 🚫 SANKTION
+    // ==========================================
+
+    if (interaction.customId === "sanktion_modal") {
+
+        const userInput = interaction.fields.getTextInputValue("user");
+        const paragraf = interaction.fields.getTextInputValue("paragraf");
+        const geld = Number(
+            interaction.fields.getTextInputValue("geld")
+        );
+
+        const grund = interaction.fields.getTextInputValue("grund");
+
+        familienKasse += geld;
+
+        const channel = interaction.guild.channels.cache.find(
+            ch => ch.name === "🚫┃𝗦𝗮𝗻𝗸𝘁𝗶𝗼𝗻𝗲𝗻"
+        );
+
+        const embed = new EmbedBuilder()
+            .setTitle("🚫 Neue Sanktion")
+            .setDescription(`
+👤 User:
+${userInput}
+
+📜 Paragraph:
+${paragraf}
+
+💸 Betrag:
+${geld.toLocaleString()}$
+
+📌 Zusatz:
+${grund}
+
+👮 Bearbeiter:
+${interaction.user.tag}
+            `)
+            .setColor(0xff0000)
+            .setTimestamp();
+
+        if (channel) {
+            channel.send({
+                embeds: [embed]
+            });
+        }
+
+        await updateFinanzOverview(
+            interaction.guild,
+            `Sanktion +${geld.toLocaleString()}$`,
+            interaction.user.tag
+        );
+
+        interaction.reply({
+            content: "✅ Sanktion erstellt",
+            ephemeral: true
+        });
+    }
+
+    // ==========================================
+    // 💷 WOCHENABGABE
+    // ==========================================
+
+    if (interaction.customId === "wochen_modal") {
+
+        const user = interaction.fields.getTextInputValue("user");
+
+        const geld = Number(
+            interaction.fields.getTextInputValue("geld")
+        );
+
+        familienKasse += geld;
+
+        await updateFinanzOverview(
+            interaction.guild,
+            `Wochenabgabe +${geld.toLocaleString()}$ von ${user}`,
+            interaction.user.tag
+        );
+
+        interaction.reply({
+            content: "✅ Wochenabgabe eingetragen",
+            ephemeral: true
+        });
+    }
+
+    // ==========================================
+    // 🤝 SPENDE
+    // ==========================================
+
+    if (interaction.customId === "spende_modal") {
+
+        const user = interaction.fields.getTextInputValue("user");
+
+        const geld = Number(
+            interaction.fields.getTextInputValue("geld")
+        );
+
+        familienKasse += geld;
+
+        await updateFinanzOverview(
+            interaction.guild,
+            `Spende +${geld.toLocaleString()}$ von ${user}`,
+            interaction.user.tag
+        );
+
+        interaction.reply({
+            content: "✅ Spende eingetragen",
+            ephemeral: true
+        });
+    }
+
+    // ==========================================
+    // ✏️ FINANZ ÄNDERN
+    // ==========================================
+
+    if (interaction.customId === "finanz_modal") {
+
+        const geld = Number(
+            interaction.fields.getTextInputValue("geld")
+        );
+
+        const grund = interaction.fields.getTextInputValue("grund");
+
+        familienKasse += geld;
+
+        await updateFinanzOverview(
+            interaction.guild,
+            `${grund} (${geld.toLocaleString()}$)`,
+            interaction.user.tag
+        );
+
+        interaction.reply({
+            content: "✅ Finanzen geändert",
+            ephemeral: true
+        });
+    }
+});
+
+// ==========================================
 // 🔑 LOGIN
 // ==========================================
 
 client.login(process.env.TOKEN);
-```
