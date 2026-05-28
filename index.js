@@ -13,7 +13,6 @@ const {
     StringSelectMenuBuilder
 } = require('discord.js');
 
-const fs = require('fs');
 require('dotenv').config();
 
 const client = new Client({
@@ -26,23 +25,31 @@ const client = new Client({
 });
 
 // =========================
-// 💾 FINANZEN DB
+// 💰 FINANZEN SPEICHER
 // =========================
-const DB = "./finance.json";
+let finance = {
+    total: 0,
+    sanktionen: 0,
+    wochenabgaben: 0
+};
 
-function getBal() {
-    if (!fs.existsSync(DB)) fs.writeFileSync(DB, JSON.stringify({ balance: 0 }));
-    return JSON.parse(fs.readFileSync(DB)).balance;
+function updateFinance(amount, type) {
+    finance.total += amount;
+
+    if (type === "sanktion") finance.sanktionen += amount;
+    if (type === "week") finance.wochenabgaben += amount;
 }
 
-function setBal(v) {
-    fs.writeFileSync(DB, JSON.stringify({ balance: v }));
-}
-
-function addBal(v) {
-    const newBal = getBal() + v;
-    setBal(newBal);
-    return newBal;
+function financeEmbed() {
+    return new EmbedBuilder()
+        .setTitle("🏦 Finanz Übersicht")
+        .setColor(0x00ffcc)
+        .addFields(
+            { name: "💰 Gesamtkasse", value: `${finance.total.toLocaleString()}$`, inline: false },
+            { name: "🚫 Sanktionen", value: `${finance.sanktionen.toLocaleString()}$`, inline: true },
+            { name: "💷 Wochenabgaben", value: `${finance.wochenabgaben.toLocaleString()}$`, inline: true }
+        )
+        .setTimestamp();
 }
 
 // =========================
@@ -64,78 +71,26 @@ client.on(Events.MessageCreate, async message => {
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator))
             return message.reply("❌ Keine Rechte");
 
-        // =========================
         // 💰 FINANZEN
-        // =========================
-        const finance = message.guild.channels.cache.find(ch =>
+        const fin = message.guild.channels.cache.find(ch =>
             ch.name === "💰┃finanz-übersicht"
         );
 
-        if (finance) {
+        if (fin) {
 
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("fin_add").setLabel("➕ Einzahlen").setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId("fin_remove").setLabel("➖ Abziehen").setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId("fin_edit").setLabel("✏️ Bearbeiten").setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId("fin_add").setLabel("➕").setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId("fin_remove").setLabel("➖").setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId("fin_set").setLabel("✏️").setStyle(ButtonStyle.Secondary)
             );
 
-            const embed = new EmbedBuilder()
-                .setTitle("🏦 Finanz Übersicht")
-                .setDescription(`💰 Gesamtkasse: **${getBal().toLocaleString()}$**`)
-                .setColor(0x00ffcc);
-
-            finance.send({ embeds: [embed], components: [row] });
+            fin.send({
+                embeds: [financeEmbed()],
+                components: [row]
+            });
         }
 
-        // =========================
-        // 🚑 ABMELDUNG
-        // =========================
-        const ab = message.guild.channels.cache.find(ch =>
-            ch.name === "🚑┃𝗔𝗯𝗺𝗲𝗹𝗱𝗲𝗻"
-        );
-
-        if (ab) {
-
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("abmelden")
-                    .setLabel("📅 Abmelden")
-                    .setStyle(ButtonStyle.Primary)
-            );
-
-            const embed = new EmbedBuilder()
-                .setTitle("🚑 Abmeldesystem")
-                .setDescription("Klicke für Abmeldung")
-                .setColor(0x0099ff);
-
-            ab.send({ embeds: [embed], components: [row] });
-        }
-
-        // =========================
-        // 💷 WOCHENABGABE
-        // =========================
-        const week = message.guild.channels.cache.find(ch =>
-            ch.name === "💷┃wochenabgabe"
-        );
-
-        if (week) {
-
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("week_send")
-                    .setLabel("💷 Abgeben")
-                    .setStyle(ButtonStyle.Success)
-            );
-
-            const embed = new EmbedBuilder()
-                .setTitle("💷 Wochenabgabe")
-                .setDescription("Reiche deine Wochenabgabe ein")
-                .setColor(0xffff00);
-
-            week.send({ embeds: [embed], components: [row] });
-        }
-
-        message.reply("✅ Panels erstellt");
+        message.reply("✅ Panel erstellt");
     }
 });
 
@@ -147,121 +102,115 @@ client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isButton()) return;
 
     // =========================
-    // ABMELDUNG
+    // FINANZ EDITOR
     // =========================
-    if (interaction.customId === "abmelden") {
+    if (interaction.customId === "fin_add") {
 
         const modal = new ModalBuilder()
-            .setCustomId("abmeldung_modal")
-            .setTitle("Abmeldung");
-
-        const von = new TextInputBuilder().setCustomId("von").setLabel("Von").setStyle(TextInputStyle.Short);
-        const bis = new TextInputBuilder().setCustomId("bis").setLabel("Bis").setStyle(TextInputStyle.Short);
-        const grund = new TextInputBuilder().setCustomId("grund").setLabel("Grund").setStyle(TextInputStyle.Paragraph);
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(von),
-            new ActionRowBuilder().addComponents(bis),
-            new ActionRowBuilder().addComponents(grund)
-        );
-
-        return interaction.showModal(modal);
-    }
-
-    // =========================
-    // WOCHENABGABE
-    // =========================
-    if (interaction.customId === "week_send") {
-
-        const modal = new ModalBuilder()
-            .setCustomId("week_modal")
-            .setTitle("Wochenabgabe");
+            .setCustomId("fin_add_modal")
+            .setTitle("Geld hinzufügen");
 
         const amount = new TextInputBuilder()
             .setCustomId("amount")
             .setLabel("Betrag")
             .setStyle(TextInputStyle.Short);
 
-        const reason = new TextInputBuilder()
-            .setCustomId("reason")
-            .setLabel("Info")
-            .setStyle(TextInputStyle.Short);
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(amount),
-            new ActionRowBuilder().addComponents(reason)
-        );
+        modal.addComponents(new ActionRowBuilder().addComponents(amount));
 
         return interaction.showModal(modal);
+    }
+
+    if (interaction.customId === "fin_remove") {
+
+        const modal = new ModalBuilder()
+            .setCustomId("fin_remove_modal")
+            .setTitle("Geld abziehen");
+
+        const amount = new TextInputBuilder()
+            .setCustomId("amount")
+            .setLabel("Betrag")
+            .setStyle(TextInputStyle.Short);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(amount));
+
+        return interaction.showModal(modal);
+    }
+
+    if (interaction.customId === "fin_set") {
+
+        const modal = new ModalBuilder()
+            .setCustomId("fin_set_modal")
+            .setTitle("Gesamt setzen");
+
+        const amount = new TextInputBuilder()
+            .setCustomId("amount")
+            .setLabel("Neuer Wert")
+            .setStyle(TextInputStyle.Short);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(amount));
+
+        return interaction.showModal(modal);
+    }
+
+    // =========================
+    // 🚫 SANKTION MENU (NEU)
+    // =========================
+    if (interaction.customId === "sanktion_menu") {
+
+        const menu = new StringSelectMenuBuilder()
+            .setCustomId("sanktion_select")
+            .setPlaceholder("§ auswählen")
+            .addOptions(
+                { label: "§1", value: "1-75000" },
+                { label: "§2", value: "2-200000" },
+                { label: "§3", value: "3-100000" },
+                { label: "§6", value: "6-500000" },
+                { label: "§9", value: "9-50000" },
+                { label: "§11", value: "11-50000" },
+                { label: "§14", value: "14-250000" },
+                { label: "§18", value: "18-200000" }
+            );
+
+        const row = new ActionRowBuilder().addComponents(menu);
+
+        return interaction.reply({
+            content: "🚫 Wähle § Regel",
+            components: [row],
+            ephemeral: true
+        });
     }
 });
 
 // =========================
-// 📝 MODALS
+// 📝 MODALS FINANZEN
 // =========================
 client.on(Events.InteractionCreate, async interaction => {
 
     if (!interaction.isModalSubmit()) return;
 
-    // =========================
-    // ABMELDUNG
-    // =========================
-    if (interaction.customId === "abmeldung_modal") {
+    const amount = Number(interaction.fields.getTextInputValue("amount") || 0);
 
-        const von = interaction.fields.getTextInputValue("von");
-        const bis = interaction.fields.getTextInputValue("bis");
-        const grund = interaction.fields.getTextInputValue("grund");
-
-        const channel = interaction.guild.channels.cache.find(ch =>
-            ch.name === "🚑┃𝗔𝗯𝗺𝗲𝗹𝗱𝘂𝗻𝗴-𝐋𝐢𝐬𝐭𝐞"
-        );
-
-        const embed = new EmbedBuilder()
-            .setTitle("📅 Abmeldung")
-            .addFields(
-                { name: "User", value: `${interaction.user}` },
-                { name: "Von", value: von },
-                { name: "Bis", value: bis },
-                { name: "Grund", value: grund }
-            )
-            .setColor(0x0099ff);
-
-        channel.send({ embeds: [embed] });
-
-        return interaction.reply({ content: "✅ Abmeldung gesendet", ephemeral: true });
+    if (interaction.customId === "fin_add_modal") {
+        updateFinance(amount, "add");
     }
 
-    // =========================
-    // WOCHENABGABE
-    // =========================
-    if (interaction.customId === "week_modal") {
-
-        const amount = Number(interaction.fields.getTextInputValue("amount"));
-        const reason = interaction.fields.getTextInputValue("reason");
-
-        const channel = interaction.guild.channels.cache.find(ch =>
-            ch.name === "💷┃wochenabgabe-verwaltung"
-        );
-
-        const embed = new EmbedBuilder()
-            .setTitle("💷 Wochenabgabe eingereicht")
-            .addFields(
-                { name: "User", value: `${interaction.user}` },
-                { name: "Betrag", value: `${amount}$` },
-                { name: "Info", value: reason }
-            )
-            .setColor(0xffff00);
-
-        channel.send({ embeds: [embed] });
-
-        // 💰 direkt in Finanzen
-        addBal(amount);
-
-        return interaction.reply({
-            content: "✅ Wochenabgabe gespeichert",
-            ephemeral: true
-        });
+    if (interaction.customId === "fin_remove_modal") {
+        updateFinance(-amount, "remove");
     }
+
+    if (interaction.customId === "fin_set_modal") {
+        finance.total = amount;
+    }
+
+    const channel = interaction.guild.channels.cache.find(ch =>
+        ch.name === "💰┃finanz-übersicht"
+    );
+
+    if (channel) {
+        channel.send({ embeds: [financeEmbed()] });
+    }
+
+    interaction.reply({ content: "✅ Aktualisiert", ephemeral: true });
 });
 
 // =========================
