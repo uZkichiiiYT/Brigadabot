@@ -14,7 +14,7 @@ const fs = require("fs");
 require("dotenv").config();
 
 // =========================
-// 🤖 BOT
+// BOT
 // =========================
 
 const client = new Client({
@@ -27,7 +27,7 @@ const client = new Client({
 });
 
 // =========================
-// 💾 DATA
+// DATA
 // =========================
 
 let data = {
@@ -37,28 +37,47 @@ let data = {
     total: 0
 };
 
-function save() {
-    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-}
-
 // =========================
-// 💣 § KATALOG
+// SANKTIONEN §1–§19
 // =========================
 
 const sanktionen = [
 { name: "§1 Nichterscheinen", cost: 75000 },
 { name: "§2 Funkdisziplin", cost: 200000 },
 { name: "§3 Gewalt", cost: 100000 },
-{ name: "§19 Anwesen", cost: 100000 }
+{ name: "§4 Anschießen", cost: 100000 },
+{ name: "§5 Inaktivität", cost: 250000 },
+{ name: "§6 Respektlosigkeit", cost: 200000 },
+{ name: "§7 Befehlsverweigerung", cost: 100000 },
+{ name: "§8 Verrat", cost: 500000 },
+{ name: "§9 Nichtzahlung +50k", cost: 50000 },
+{ name: "§10 Zinken", cost: 90000 },
+{ name: "§11 Wochen nicht gezahlt", cost: 50000 },
+{ name: "§12 Fehlverhalten", cost: 200000 },
+{ name: "§13 Kleidung", cost: 50000 },
+{ name: "§14 Fahrzeugdiebstahl", cost: 250000 },
+{ name: "§15 Aufstellung ignoriert", cost: 100000 },
+{ name: "§16 Sondersanktion", cost: 300000 },
+{ name: "§17 Maske", cost: 50000 },
+{ name: "§18 Schießen Anwesen", cost: 200000 },
+{ name: "§19 Schlagen Anwesen", cost: 100000 }
 ];
 
 // =========================
-// 🏦 FINANZ UPDATE
+// SAVE
+// =========================
+
+function save() {
+    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+}
+
+// =========================
+// FINANZ UPDATE
 // =========================
 
 async function updateFinance(guild) {
 
-    const ch = guild.channels.cache.find(c => c.name === "🏦┃Finanz-übersicht");
+    const ch = guild.channels.cache.find(c => c.name.includes("Finanz"));
     if (!ch) return;
 
     const embed = new EmbedBuilder()
@@ -71,11 +90,19 @@ async function updateFinance(guild) {
             { name: "🎁 Spenden", value: `${data.spenden}$` }
         );
 
-    await ch.send({ embeds: [embed] }).catch(() => {});
+    // nur EIN embed -> kein spam
+    const messages = await ch.messages.fetch({ limit: 10 });
+    const old = messages.find(m => m.author.id === client.user.id);
+
+    if (old) {
+        old.edit({ embeds: [embed] });
+    } else {
+        ch.send({ embeds: [embed] });
+    }
 }
 
 // =========================
-// 🚀 READY
+// READY
 // =========================
 
 client.once(Events.ClientReady, () => {
@@ -83,20 +110,26 @@ client.once(Events.ClientReady, () => {
 });
 
 // =========================
-// 📌 PANELS
+// !PANEL SYSTEM
 // =========================
 
 client.on(Events.MessageCreate, async message => {
 
     if (message.author.bot) return;
 
-    // =========================
-    // !panel
-    // =========================
-
     if (message.content === "!panel") {
 
-        const ch = message.guild.channels.cache.find(c => c.name === "🏦┃Finanz-übersicht");
+        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator))
+            return;
+
+        const finanz = message.guild.channels.cache.find(c => c.name.includes("Finanz"));
+        const sanktion = message.guild.channels.cache.find(c => c.name.includes("Sanktion"));
+        const abmeldung = message.guild.channels.cache.find(c => c.name.includes("Abmelden"));
+        const wochen = message.guild.channels.cache.find(c => c.name.includes("Wochen"));
+
+        // =========================
+        // 💣 SANKTION PANEL
+        // =========================
 
         const menu = new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
@@ -111,85 +144,71 @@ client.on(Events.MessageCreate, async message => {
                 )
         );
 
-        const btn = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("bezahlt")
-                .setLabel("✅ Bezahlt")
-                .setStyle(ButtonStyle.Success)
-        );
-
-        ch.send({
+        sanktion.send({
             embeds: [
                 new EmbedBuilder()
                     .setTitle("💣 Sanktionen Panel")
                     .setColor(0xff0000)
             ],
-            components: [menu, btn]
+            components: [menu]
         });
 
-        message.reply("✅ Panel erstellt");
-    }
+        // =========================
+        // 🏦 FINANZ PANEL
+        // =========================
 
-    // =========================
-    // 🧾 ABMELDUNG PANEL
-    // =========================
+        const financeBtn = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("add")
+                .setLabel("➕ +100k")
+                .setStyle(ButtonStyle.Success),
 
-    if (message.content === "!abmeldung") {
+            new ButtonBuilder()
+                .setCustomId("remove")
+                .setLabel("➖ -100k")
+                .setStyle(ButtonStyle.Danger)
+        );
 
-        const ch = message.guild.channels.cache.find(c => c.name === "🚑┃Abmelden");
+        finanz.send({
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle("🏦 Finanz System")
+                    .setColor(0x00ccff)
+            ],
+            components: [financeBtn]
+        });
 
-        ch.send({
+        // =========================
+        // 🚑 ABMELDUNG
+        // =========================
+
+        abmeldung.send({
             embeds: [
                 new EmbedBuilder()
                     .setTitle("🚑 Abmeldung System")
                     .setDescription("Klicke um dich abzumelden")
+                    .setColor(0x0099ff)
             ]
         });
-    }
 
-    // =========================
-    // 💷 WOCHEN + SPENDEN PANEL
-    // =========================
+        // =========================
+        // 💷 WOCHEN
+        // =========================
 
-    if (message.content === "!wochen") {
-
-        const ch = message.guild.channels.cache.find(c => c.name === "💷┃Wochenabgabe-verwaltung");
-
-        ch.send({
+        wochen.send({
             embeds: [
                 new EmbedBuilder()
-                    .setTitle("💷 Wochen & Spenden Verwaltung")
+                    .setTitle("💷 Wochen & Spenden")
                     .setColor(0x00ff99)
             ]
         });
-    }
 
-    // =========================
-    // 🏦 FINANZ DASHBOARD
-    // =========================
-
-    if (message.content === "!finanz") {
-
-        const ch = message.guild.channels.cache.find(c => c.name === "🏦┃Finanz-übersicht");
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("add").setLabel("➕ +100k").setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId("remove").setLabel("➖ -100k").setStyle(ButtonStyle.Danger)
-        );
-
-        ch.send({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle("🏦 Admin Finanz System")
-                    .setColor(0xffcc00)
-            ],
-            components: [row]
-        });
+        message.reply("✅ Komplettes Panel erstellt");
     }
 });
 
 // =========================
-// 🔘 INTERACTIONS
+// INTERACTIONS
 // =========================
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -198,8 +217,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
         if (interaction.customId === "sanktion") {
 
-            const i = Number(interaction.values[0]);
-            const s = sanktionen[i];
+            const s = sanktionen[interaction.values[0]];
 
             data.sanktionen += s.cost;
             data.total += s.cost;
@@ -208,21 +226,13 @@ client.on(Events.InteractionCreate, async interaction => {
             updateFinance(interaction.guild);
 
             return interaction.reply({
-                content: `🚫 ${s.name} (${s.cost}$)`,
+                content: `🚫 ${s.name}`,
                 ephemeral: true
             });
         }
     }
 
     if (interaction.isButton()) {
-
-        if (interaction.customId === "bezahlt") {
-
-            return interaction.reply({
-                content: "✅ bestätigt",
-                ephemeral: true
-            });
-        }
 
         if (interaction.customId === "add") {
             data.total += 100000;
@@ -243,7 +253,7 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 // =========================
-// 🔑 LOGIN
+// LOGIN
 // =========================
 
 client.login(process.env.TOKEN);
