@@ -9,8 +9,7 @@ const {
     TextInputBuilder,
     TextInputStyle,
     EmbedBuilder,
-    PermissionsBitField,
-    StringSelectMenuBuilder
+    PermissionsBitField
 } = require("discord.js");
 
 require("dotenv").config();
@@ -39,20 +38,26 @@ function financeEmbed() {
             { name: "🚫 Sanktionen", value: `${sanktionen.toLocaleString()}$` },
             { name: "💷 Wochenabgaben", value: `${wochenabgaben.toLocaleString()}$` }
         )
-        .setFooter({ text: "Brigada Finanzsystem" })
+        .setFooter({ text: "Brigada System" })
         .setTimestamp();
 }
 
+// =====================
+// 🔄 UPDATE FINANZEN
+// =====================
 async function updateFinance(guild) {
-    const ch = guild.channels.cache.find(c => c.name.includes("finanz"));
+    const ch = guild.channels.cache.find(c =>
+        c.name.includes("finanz")
+    );
+
     if (!ch) return;
 
-    await ch.send({
+    ch.send({
         embeds: [financeEmbed()],
         components: [
             new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                    .setCustomId("fin_update")
+                    .setCustomId("fin_refresh")
                     .setLabel("🔄 Update")
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
@@ -65,7 +70,7 @@ async function updateFinance(guild) {
 }
 
 // =====================
-// 🟢 BOT START
+// 🟢 START
 // =====================
 client.once(Events.ClientReady, () => {
     console.log(`Online: ${client.user.tag}`);
@@ -86,10 +91,17 @@ client.on(Events.MessageCreate, async message => {
         await updateFinance(message.guild);
 
         // 🚑 ABMELDUNG
-        const ab = message.guild.channels.cache.find(c => c.name.includes("abmelden"));
+        const ab = message.guild.channels.cache.find(c =>
+            c.name.includes("abmelden")
+        );
+
         if (ab) {
             ab.send({
-                embeds: [new EmbedBuilder().setTitle("🚑 Abmeldung System").setColor(0x0099ff)],
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("🚑 Abmeldesystem")
+                        .setColor(0x0099ff)
+                ],
                 components: [
                     new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
@@ -101,42 +113,51 @@ client.on(Events.MessageCreate, async message => {
             });
         }
 
-        // 💷 WOCHENABGABE
-        const wk = message.guild.channels.cache.find(c => c.name.includes("wochenabgabe"));
+        // 💷 WOCHENABGABE → NEUER CHANNEL
+        const wk = message.guild.channels.cache.find(c =>
+            c.name.includes("Wochenabgabe-verwaltung") ||
+            c.name.includes("wochenabgabe-verwaltung")
+        );
+
         if (wk) {
             wk.send({
-                embeds: [new EmbedBuilder().setTitle("💷 Wochenabgabe").setColor(0xffff00)],
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("💷 Wochenabgabe Verwaltung")
+                        .setColor(0xffff00)
+                ],
                 components: [
                     new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                             .setCustomId("week")
-                            .setLabel("💷 Abgeben")
+                            .setLabel("💷 Abgabe")
                             .setStyle(ButtonStyle.Success)
                     )
                 ]
             });
         }
 
-        // 🚫 SANKTION
-        const sanc = message.guild.channels.cache.find(c => c.name.includes("sanktion"));
+        // 🚫 SANKTION (WIE VORHER)
+        const sanc = message.guild.channels.cache.find(c =>
+            c.name.includes("sanktion")
+        );
+
         if (sanc) {
-
-            const menu = new StringSelectMenuBuilder()
-                .setCustomId("sanktion_select")
-                .setPlaceholder("§ auswählen")
-                .addOptions(
-                    { label: "§1", value: "75000" },
-                    { label: "§2", value: "200000" },
-                    { label: "§3", value: "100000" },
-                    { label: "§5", value: "250000" },
-                    { label: "§6", value: "500000" },
-                    { label: "§14", value: "250000" },
-                    { label: "§18", value: "200000" }
-                );
-
             sanc.send({
-                embeds: [new EmbedBuilder().setTitle("🚫 Sanktion System").setColor(0xff0000)],
-                components: [new ActionRowBuilder().addComponents(menu)]
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("🚫 Sanktion System")
+                        .setDescription("Schreibe Sanktionen manuell ein wie vorher.")
+                        .setColor(0xff0000)
+                ],
+                components: [
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId("sanktion")
+                            .setLabel("🚫 Sanktion erstellen")
+                            .setStyle(ButtonStyle.Danger)
+                    )
+                ]
             });
         }
 
@@ -151,46 +172,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (!interaction.isButton()) return;
 
-    // 🔄 FINANZ UPDATE
-    if (interaction.customId === "fin_update") {
-        return interaction.reply({
-            embeds: [financeEmbed()],
-            ephemeral: true
-        });
-    }
-
-    // ⚙️ FINANZ EDITOR (3 & 4 FIX)
-    if (interaction.customId === "fin_edit") {
-
-        const modal = new ModalBuilder()
-            .setCustomId("fin_modal")
-            .setTitle("Finanz Editor");
-
-        const type = new TextInputBuilder()
-            .setCustomId("type")
-            .setLabel("sanktion / wochen / add / remove")
-            .setStyle(TextInputStyle.Short);
-
-        const amount = new TextInputBuilder()
-            .setCustomId("amount")
-            .setLabel("Betrag")
-            .setStyle(TextInputStyle.Short);
-
-        const reason = new TextInputBuilder()
-            .setCustomId("reason")
-            .setLabel("Grund")
-            .setStyle(TextInputStyle.Paragraph);
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(type),
-            new ActionRowBuilder().addComponents(amount),
-            new ActionRowBuilder().addComponents(reason)
-        );
-
-        return interaction.showModal(modal);
-    }
-
-    // 📅 ABMELDEN
+    // 📅 ABMELDUNG
     if (interaction.customId === "abmelden") {
 
         const modal = new ModalBuilder()
@@ -228,22 +210,31 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.showModal(modal);
     }
 
-    // 🚫 SANKTION SELECT
-    if (interaction.isStringSelectMenu() && interaction.customId === "sanktion_select") {
-
-        const amount = Number(interaction.values[0]);
-        sanktionen += amount;
-
-        interaction.channel.send({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle("🚫 Sanktion")
-                    .setDescription(`${amount}$`)
-                    .setColor(0xff0000)
-            ]
+    // 🔄 FIN UPDATE
+    if (interaction.customId === "fin_refresh") {
+        return interaction.reply({
+            embeds: [financeEmbed()],
+            ephemeral: true
         });
+    }
 
-        return interaction.reply({ content: "✅ gespeichert", ephemeral: true });
+    // ⚙️ FIN EDITOR
+    if (interaction.customId === "fin_edit") {
+
+        const modal = new ModalBuilder()
+            .setCustomId("fin_modal")
+            .setTitle("Finanz Editor");
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId("type").setLabel("sanktion / wochen / add / remove").setStyle(TextInputStyle.Short)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId("amount").setLabel("Betrag").setStyle(TextInputStyle.Short)
+            )
+        );
+
+        return interaction.showModal(modal);
     }
 });
 
@@ -254,7 +245,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (!interaction.isModalSubmit()) return;
 
-    // ⚙️ FINANZ EDITOR (3 & 4)
+    // 💰 FIN EDIT
     if (interaction.customId === "fin_modal") {
 
         const type = interaction.fields.getTextInputValue("type");
@@ -271,18 +262,23 @@ client.on(Events.InteractionCreate, async interaction => {
             wochenabgaben -= amount;
         }
 
-        await interaction.reply({ content: "✅ aktualisiert", ephemeral: true });
         await updateFinance(interaction.guild);
+        return interaction.reply({ content: "✅ geändert", ephemeral: true });
     }
 
-    // 📅 ABMELDUNG
+    // 📅 ABMELDUNG FIX
     if (interaction.customId === "ab_modal") {
 
         const von = interaction.fields.getTextInputValue("von");
         const bis = interaction.fields.getTextInputValue("bis");
         const grund = interaction.fields.getTextInputValue("grund");
 
-        const ch = interaction.guild.channels.cache.find(c => c.name.includes("abmelden"));
+        const ch = interaction.guild.channels.cache.find(c =>
+            c.name.includes("Abmelden") || c.name.includes("abmelden")
+        );
+
+        if (!ch)
+            return interaction.reply({ content: "❌ Channel fehlt", ephemeral: true });
 
         ch.send({
             embeds: [
@@ -298,16 +294,21 @@ client.on(Events.InteractionCreate, async interaction => {
             ]
         });
 
-        interaction.reply({ content: "✅ gesendet", ephemeral: true });
+        return interaction.reply({ content: "✅ gesendet", ephemeral: true });
     }
 
-    // 💷 WOCHENABGABE
+    // 💷 WOCHENABGABE FIX
     if (interaction.customId === "week_modal") {
 
         const amount = Number(interaction.fields.getTextInputValue("amount"));
         wochenabgaben += amount;
 
-        const ch = interaction.guild.channels.cache.find(c => c.name.includes("wochenabgabe"));
+        const ch = interaction.guild.channels.cache.find(c =>
+            c.name.includes("Wochenabgabe-verwaltung")
+        );
+
+        if (!ch)
+            return interaction.reply({ content: "❌ Channel fehlt", ephemeral: true });
 
         ch.send({
             embeds: [
@@ -318,7 +319,7 @@ client.on(Events.InteractionCreate, async interaction => {
             ]
         });
 
-        interaction.reply({ content: "✅ gespeichert", ephemeral: true });
+        return interaction.reply({ content: "✅ gespeichert", ephemeral: true });
     }
 });
 
